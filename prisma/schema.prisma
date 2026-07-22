@@ -1,5 +1,3 @@
-
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -9,63 +7,60 @@ datasource db {
   provider = "postgresql"
 }
 
-
-model User{
-  id            Int         @default(autoincrement()) @id 
-  username      String      @unique
-  password      String
-  orders        Order[]
+model User {
+  id       String  @id @default(uuid())
+  username String  @unique
+  password String
+  orders   Order[]
 }
 
 model Stock {
-  id            Int         @default(autoincrement()) @id
-  title         String
-  symbol        String    
-  orders        Order[]
-  fills         Fill[]
+  id     String  @id @default(uuid())
+  title  String
+  symbol String
+  orders Order[]
+  fills  Fill[]
 }
 
-model Order{
-  id            Int         @default(autoincrement()) @id
-  userId        Int
-  side          OrderSide   @default(BUY)
-  type          OrderType   @default(LIMIT)
-  stockId       Int
-  price         Int
-  qty           Int
-  filledQty     Int
-  status        OrderStatus @default(FILLED)
-  stock         Stock       @relation(fields: [stockId],references: [id])
-  user          User        @relation(fields: [userId],references: [id])
-  buyfills      Fill[]      @relation("BuyOrder")
-  sellFills     Fill[]      @relation("SellOrder")
+model Order {
+  id        String      @id @default(uuid())
+  userId    String
+  side      OrderSide   @default(BUY)
+  type      OrderType   @default(LIMIT)
+  stockId   String
+  price     Int
+  qty       Int
+  filledQty Int
+  status    OrderStatus @default(FILLED)
+  stock     Stock       @relation(fields: [stockId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+  buyfills  Fill[]      @relation("BuyOrder")
+  sellFills Fill[]      @relation("SellOrder")
 }
 
-model Fill{
-  id            Int         @default(autoincrement()) @id
-  stockId       Int
-  price         Int
-  qty           Int
-  buyOrderId    Int
-  sellOrderId   Int
-  stock         Stock       @relation(fields: [stockId],references: [id])
-  buyOrder      Order       @relation("BuyOrder",fields: [buyOrderId],references: [id])
-  sellOrder     Order       @relation("SellOrder",fields: [sellOrderId],references: [id])
-  
+model Fill {
+  id          String @id @default(uuid())
+  stockId     String
+  price       Int
+  qty         Int
+  buyOrderId  String
+  sellOrderId String
+  stock       Stock  @relation(fields: [stockId], references: [id])
+  buyOrder    Order  @relation("BuyOrder", fields: [buyOrderId], references: [id])
+  sellOrder   Order  @relation("SellOrder", fields: [sellOrderId], references: [id])
 }
 
-
-enum OrderSide{
+enum OrderSide {
   BUY
   SELL
 }
 
-enum OrderType{
+enum OrderType {
   LIMIT
   MARKET
 }
 
-enum OrderStatus{
+enum OrderStatus {
   FILLED
   CANCELLED
 }
