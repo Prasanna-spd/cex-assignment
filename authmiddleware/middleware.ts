@@ -1,11 +1,13 @@
 import jwt from "jsonwebtoken"
-import type { Request,Response,NextFunction } from "express";
+import type {Response,NextFunction } from "express";
 
-export function authmiddleware(req:Request,res:Response,next:NextFunction){
+export function authmiddleware(req:any,res:Response,next:NextFunction){
     const token=req.headers.token as string
-    const decoded = jwt.verify(token,"mynameisamarakbaranthony")
+    const decoded = jwt.verify(token,"mynameisamarakbaranthony") as {
+        userId:string
+    };
 
-    const userId=decoded.userId;
+    const userId=decoded.userId 
 
     if(userId){
         req.userId=userId

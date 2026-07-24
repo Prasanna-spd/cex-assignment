@@ -17,6 +17,15 @@ const prisma = new PrismaClient({
   adapter,
 });
 
+
+const BALANCES={1:{INR:{available:100,locked:0},AXIS:{available:100,locked:0}}}
+const ORDERBOOK={
+  AXIS:{bids:{},asks:{}},
+  HDFC:{bids:{},asks:{}},
+  ICICI:{bids:{},asks:{}},
+  TATA:{bids:{},asks:{}}
+}
+
 // POST Routes
 
 app.post("/signup", async (req, res) => {
@@ -85,11 +94,42 @@ app.post("signin", async (req, res) => {
   );
 
   res.json({
-    token
-  })
+    token,
+  });
 });
 
-app.post("/order", authmiddleware, (req, res) => {});
+app.post("/order", authmiddleware, async(req:any, res) => {
+  const userId=req.userId
+  const side=req.body.side
+  const type=req.body.type
+  const symbol=req.body.symbol
+  const price = req.body.price
+  const qty=req.body.qty
+
+  if(side==="BUY"){
+    if(BALANCES[userId].INR.available < price*qty){
+      return res.status(411).json({
+        message:"Insufficient Balance"
+      })
+    }
+    else{
+      const available=BALANCES[userId].INR.available
+      BALANCES[userId].INR.available=available-price*qty;
+      BALANCES[userId].INR.locked=price*qty
+    }
+  }else if(side==="SELL"){
+    if(BALANCES[userId].symbol.available<qty){
+      return res.status(404).json({
+        message:"Insufficient stock balance"
+      })
+    }else{
+      const availableStock=BALANCES[userId].symbol.available
+      BALANCES[userId].symbol.available=availableStock-qty
+      BALANCES[userId].symbol.locked=qty
+    }
+  }
+
+});
 
 // GET Routes
 
