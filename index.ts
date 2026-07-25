@@ -7,24 +7,37 @@ import { authmiddleware } from "./authmiddleware/middleware";
 import jwt from "jsonwebtoken";
 
 const app = express();
+app.use(express.json());
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 const adapter = new PrismaPg(pool);
-
 const prisma = new PrismaClient({
   adapter,
 });
 
+type Asset = {
+  available: number;
+  locked: number;
+};
 
-const BALANCES={1:{INR:{available:100,locked:0},AXIS:{available:100,locked:0}}}
-const ORDERBOOK={
-  AXIS:{bids:{},asks:{}},
-  HDFC:{bids:{},asks:{}},
-  ICICI:{bids:{},asks:{}},
-  TATA:{bids:{},asks:{}}
-}
+type Wallet={
+  INR:Asset;
+} & Record<string,Asset>
+
+const BALANCES: Record<string, Wallet> = {
+  "1": {
+    INR: { available: 100, locked: 0 },
+    AXIS: { available: 100, locked: 0 },
+  },
+};
+const ORDERBOOK = {
+  AXIS: { bids: {}, asks: {} },
+  HDFC: { bids: {}, asks: {} },
+  ICICI: { bids: {}, asks: {} },
+  TATA: { bids: {}, asks: {} },
+};
 
 // POST Routes
 
@@ -98,37 +111,49 @@ app.post("signin", async (req, res) => {
   });
 });
 
-app.post("/order", authmiddleware, async(req:any, res) => {
-  const userId=req.userId
-  const side=req.body.side
-  const type=req.body.type
-  const symbol=req.body.symbol
-  const price = req.body.price
-  const qty=req.body.qty
+app.post("/order", authmiddleware, async (req: any, res) => {
+  const userId = req.userId;
+  const side = req.body.side;
+  const type = req.body.type;
+  const symbol = req.body.symbol;
+  const price = req.body.price;
+  const qty = req.body.qty;
 
-  if(side==="BUY"){
-    if(BALANCES[userId].INR.available < price*qty){
-      return res.status(411).json({
-        message:"Insufficient Balance"
-      })
-    }
-    else{
-      const available=BALANCES[userId].INR.available
-      BALANCES[userId].INR.available=available-price*qty;
-      BALANCES[userId].INR.locked=price*qty
-    }
-  }else if(side==="SELL"){
-    if(BALANCES[userId].symbol.available<qty){
-      return res.status(404).json({
-        message:"Insufficient stock balance"
-      })
-    }else{
-      const availableStock=BALANCES[userId].symbol.available
-      BALANCES[userId].symbol.available=availableStock-qty
-      BALANCES[userId].symbol.locked=qty
-    }
+  const userBalance = BALANCES[userId];
+  if (!userBalance) {
+    return res.status(404).json({
+      message: "User balance not found",
+    });
   }
 
+  const asset = userBalance[symbol];
+  if (!asset) {
+    return res.status(404).json({
+      message: "User asset not found",
+    });
+  }
+
+  if (side === "BUY") {
+    if (userBalance.INR.available < price * qty) {
+      return res.status(411).json({
+        message: "Insufficient account Balance",
+      });
+    } else {
+      const available = userBalance.INR.available;
+      userBalance.INR.available = available - price * qty;
+      userBalance.INR.locked = price * qty;
+    }
+  } else if (side === "SELL") {
+    if (asset.available < qty) {
+      return res.status(404).json({
+        message: "Insufficient stock balance",
+      });
+    } else {
+      const availableStock = asset.available;
+      asset.available = availableStock - qty;
+      asset.locked = qty;
+    }
+  }
 });
 
 // GET Routes
