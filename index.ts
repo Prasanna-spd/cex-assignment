@@ -22,9 +22,9 @@ type Asset = {
   locked: number;
 };
 
-type Wallet={
-  INR:Asset;
-} & Record<string,Asset>
+type Wallet = {
+  INR: Asset;
+} & Record<string, Asset>;
 
 const BALANCES: Record<string, Wallet> = {
   "1": {
@@ -42,11 +42,6 @@ const ORDERBOOK = {
 // POST Routes
 
 app.post("/signup", async (req, res) => {
-  // const { username, password } = req.body;
-  // 1. check username not taken
-  // 2. hash password (bcrypt/argon2)
-  // 3. push to USERS
-  // 4. init BALANCES[userId] with INR: { available: 0, locked: 0 }
 
   const username = req.body.username;
   const password = req.body.password;
@@ -70,6 +65,13 @@ app.post("/signup", async (req, res) => {
       password: hashedpassword,
     },
   });
+
+  BALANCES[user.id]={
+    INR:{
+      available:0,
+      locked:0
+    }
+  }
 
   return res.status(201).json({
     message: "User created successfully",
@@ -163,3 +165,51 @@ app.post("/order", authmiddleware, async (req: any, res) => {
 app.listen(3000, () => {
   console.log("listening on port 3000");
 });
+
+
+/*
+
+
+now incase of buy we checked the balance and locked it in locked property 
+
+for sell we checked the balance for stock and locked the stock in locked property
+
+
+
+now for matching we need to write a logic 
+1. that once buy is placed we will check the other side of the orderbook and find the match 
+2. if sell is placed we will check the bid side of the orderbook and find match 
+
+now if match is not found we will make them sit in orderbook
+
+now if match is found we will do the following
+1. match the order update the order book
+2. update the users mooney balance or stock balance
+3. update the users stock locked value or money locked value
+4. update the fills table according to the maker and taker entry
+
+now if there is a partial match we will do the following
+1. match the order and update the orderbook
+2. update the users money balance or stock balance
+3. update the users stoock locked value or money locked value
+4. update the fills table accordingly
+5. for the rest of the unfilled orders the user sits on the orderbook
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
