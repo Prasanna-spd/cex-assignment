@@ -42,8 +42,14 @@ type PlaceOrder = {
 };
 
 type PriceLevel = {
-  totalQty: number;
-  orders: PlaceOrder[];
+  bids: {
+    totalQty: number;
+    orders: PlaceOrder[];
+  };
+  asks: {
+    totalQty: number;
+    orders: PlaceOrder[];
+  };
 };
 
 type Stockorder = Record<number, PriceLevel>;
@@ -51,8 +57,14 @@ type Stockorder = Record<number, PriceLevel>;
 const ORDERBOOK: Record<string, Stockorder> = {
   Axis: {
     100: {
-      totalQty: 0,
-      orders: [],
+      bids: {
+        totalQty: 0,
+        orders: [],
+      },
+      asks: {
+        totalQty: 0,
+        orders: [],
+      },
     },
   },
 };
@@ -163,7 +175,39 @@ app.post("/order", authmiddleware, async (req: any, res) => {
       userBalance.INR.locked = price * qty;
     }
 
-    const matchedOrder = ORDERBOOK[symbol];
+    const newOrder= await prisma.order.create({
+      data:{
+        userId,
+        side,
+        type,
+        price,
+        qty,
+        filledQty:0,
+        status:"FILLED",
+        stockId:"111"
+      }
+    })
+
+    const stockAvailableInOrderBook = ORDERBOOK[symbol];
+    if (!stockAvailableInOrderBook) {
+      ORDERBOOK[symbol]![price]!.asks = {
+        totalQty: qty,
+        orders: [
+          {
+            userId: userId,
+            qty,
+            filledQty: 0,
+            orderId: newOrder.id,
+            createdAt: new Date(),
+          },
+        ],
+      };
+    }
+
+    const matchedOrder = ORDERBOOK[symbol]![price];
+    if (!matchedOrder) {
+      ORDERBOOK[symbol];
+    }
   } else if (side === "SELL") {
     if (asset.available < qty) {
       return res.status(404).json({
