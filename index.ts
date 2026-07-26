@@ -32,17 +32,34 @@ const BALANCES: Record<string, Wallet> = {
     AXIS: { available: 100, locked: 0 },
   },
 };
-const ORDERBOOK = {
-  AXIS: { bids: {}, asks: {} },
-  HDFC: { bids: {}, asks: {} },
-  ICICI: { bids: {}, asks: {} },
-  TATA: { bids: {}, asks: {} },
+
+type PlaceOrder = {
+  userId: string;
+  qty: number;
+  filledQty: number;
+  orderId: string;
+  createdAt: Date;
+};
+
+type PriceLevel = {
+  totalQty: number;
+  orders: PlaceOrder[];
+};
+
+type Stockorder = Record<number, PriceLevel>;
+
+const ORDERBOOK: Record<string, Stockorder> = {
+  Axis: {
+    100: {
+      totalQty: 0,
+      orders: [],
+    },
+  },
 };
 
 // POST Routes
 
 app.post("/signup", async (req, res) => {
-
   const username = req.body.username;
   const password = req.body.password;
 
@@ -66,12 +83,12 @@ app.post("/signup", async (req, res) => {
     },
   });
 
-  BALANCES[user.id]={
-    INR:{
-      available:0,
-      locked:0
-    }
-  }
+  BALANCES[user.id] = {
+    INR: {
+      available: 0,
+      locked: 0,
+    },
+  };
 
   return res.status(201).json({
     message: "User created successfully",
@@ -145,6 +162,8 @@ app.post("/order", authmiddleware, async (req: any, res) => {
       userBalance.INR.available = available - price * qty;
       userBalance.INR.locked = price * qty;
     }
+
+    const matchedOrder = ORDERBOOK[symbol];
   } else if (side === "SELL") {
     if (asset.available < qty) {
       return res.status(404).json({
@@ -165,7 +184,6 @@ app.post("/order", authmiddleware, async (req: any, res) => {
 app.listen(3000, () => {
   console.log("listening on port 3000");
 });
-
 
 /*
 
@@ -194,22 +212,6 @@ now if there is a partial match we will do the following
 3. update the users stoock locked value or money locked value
 4. update the fills table accordingly
 5. for the rest of the unfilled orders the user sits on the orderbook
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 */
