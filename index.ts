@@ -206,7 +206,30 @@ app.post("/order", authmiddleware, async (req: any, res) => {
 
     const matchedOrder = ORDERBOOK[symbol]![price];
     if (!matchedOrder) {
-      ORDERBOOK[symbol];
+        ORDERBOOK[symbol]![price]!.bids={
+          totalQty:qty,
+          orders:[{
+            userId,
+            qty,
+            filledQty:0,
+            orderId:newOrder.id,
+            createdAt:new Date()
+          }]
+        }
+    }else {
+      if(!matchedOrder.asks){
+        res.status(404).json({
+          message:"No Match found"
+        })
+      }else{
+        // traverse one by one and  find how many got filled and how many not filled
+        if(matchedOrder.asks.totalQty<qty){
+          // make entry to filled table
+          // make entry to filled table and update the orderbook
+        }else if(matchedOrder.asks.totalQty>qty){
+          // make entry to filled table and update the orderbook
+        }
+      }
     }
   } else if (side === "SELL") {
     if (asset.available < qty) {
