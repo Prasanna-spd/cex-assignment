@@ -150,6 +150,12 @@ app.post("/order", authmiddleware, async (req: any, res) => {
   const price = req.body.price;
   const qty = req.body.qty;
 
+  const stock= await prisma.stock.findUnique({
+    where:{
+      symbol
+    }
+  })
+
   const userBalance = BALANCES[userId];
   if (!userBalance) {
     return res.status(404).json({
@@ -223,11 +229,59 @@ app.post("/order", authmiddleware, async (req: any, res) => {
         })
       }else{
         // traverse one by one and  find how many got filled and how many not filled
-        if(matchedOrder.asks.totalQty<qty){
+        if(matchedOrder.asks.totalQty<=qty){
           // make entry to filled table
           // make entry to filled table and update the orderbook
+          let totalqty=matchedOrder.asks.totalQty
+          let i=0;
+          while(totalqty!=0){
+            const order=matchedOrder.asks.orders[i]
+            if(order!.qty<=qty){
+              totalqty-=order!.qty
+              const filledQty=order!.qty
+              const newFilledOrder=prisma.fill.create({
+                data:{
+                  stockId:stock!.id,
+                  price,
+                  qty:filledQty,
+                  buyOrderId:newOrder.id,
+                  sellOrderId:order!.orderId
+                }
+              })
+            }
+            matchedOrder.asks.orders.splice(i,1)
+          }
+          matchedOrder.bids.orders.push({
+            userId,
+            qty:qty-totalqty,
+            filledQty:totalqty,
+            orderId:newOrder.id,
+            createdAt:new Date()
+          })
         }else if(matchedOrder.asks.totalQty>qty){
           // make entry to filled table and update the orderbook
+          let totalqty=matchedOrder.asks.totalQty
+          let i=0;
+          let orderqty=qty
+          while(orderqty!=0){
+            const order=matchedOrder.asks.orders[i]
+            if(order!.qty<=orderqty){
+              orderqty-=order!.qty
+              const newFilledOrder=prisma.fill.create({
+                data:{
+                  stockId:stock!.id,
+                  price,
+                  qty:order!.qty,
+                  buyOrderId:newOrder.id,
+                  sellOrderId:order!.orderId
+                }
+              })
+              matchedOrder.asks.orders.splice(i,1)
+            }else{
+              // update the order in orderbook and reduce the qty that has been eaten up 
+            }
+            
+          }
         }
       }
     }
