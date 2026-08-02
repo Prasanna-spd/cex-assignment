@@ -150,11 +150,11 @@ app.post("/order", authmiddleware, async (req: any, res) => {
   const price = req.body.price;
   const qty = req.body.qty;
 
-  const stock= await prisma.stock.findUnique({
-    where:{
-      symbol
-    }
-  })
+  const stock = await prisma.stock.findUnique({
+    where: {
+      symbol,
+    },
+  });
 
   const userBalance = BALANCES[userId];
   if (!userBalance) {
@@ -181,18 +181,18 @@ app.post("/order", authmiddleware, async (req: any, res) => {
       userBalance.INR.locked = price * qty;
     }
 
-    const newOrder= await prisma.order.create({
-      data:{
+    const newOrder = await prisma.order.create({
+      data: {
         userId,
         side,
         type,
         price,
         qty,
-        filledQty:0,
-        status:"FILLED",
-        stockId:"111"
-      }
-    })
+        filledQty: 0,
+        status: "FILLED",
+        stockId: "111",
+      },
+    });
 
     const stockAvailableInOrderBook = ORDERBOOK[symbol];
     if (!stockAvailableInOrderBook) {
@@ -210,77 +210,76 @@ app.post("/order", authmiddleware, async (req: any, res) => {
       };
     }
 
-    const matchedOrder = ORDERBOOK[symbol]![price];
+    const matchedOrder = ORDERBOOK[symbol]![price]; // price needs to be sorted only when we need to display the order book
     if (!matchedOrder) {
-        ORDERBOOK[symbol]![price]!.bids={
-          totalQty:qty,
-          orders:[{
+      ORDERBOOK[symbol]![price]!.bids = {
+        totalQty: qty,
+        orders: [
+          {
             userId,
             qty,
-            filledQty:0,
-            orderId:newOrder.id,
-            createdAt:new Date()
-          }]
-        }
-    }else {
-      if(!matchedOrder.asks){
+            filledQty: 0,
+            orderId: newOrder.id,
+            createdAt: new Date(),
+          },
+        ],
+      };
+    } else {
+      if (!matchedOrder.asks) {
         res.status(404).json({
-          message:"No Match found"
-        })
-      }else{
+          message: "No Match found",
+        });
+      } else {
         // traverse one by one and  find how many got filled and how many not filled
-        if(matchedOrder.asks.totalQty<=qty){
+        if (matchedOrder.asks.totalQty <= qty) {
           // make entry to filled table
           // make entry to filled table and update the orderbook
-          let totalqty=matchedOrder.asks.totalQty
-          let i=0;
-          while(totalqty!=0){
-            const order=matchedOrder.asks.orders[i]
-            if(order!.qty<=qty){
-              totalqty-=order!.qty
-              const filledQty=order!.qty
-              const newFilledOrder=prisma.fill.create({
-                data:{
-                  stockId:stock!.id,
+          let totalqty = matchedOrder.asks.totalQty;
+          let i = 0;
+          while (totalqty != 0) {
+            const order = matchedOrder.asks.orders[i];
+            if (order!.qty <= qty) {
+              totalqty -= order!.qty;
+              const filledQty = order!.qty;
+              const newFilledOrder = await prisma.fill.create({
+                data: {
+                  stockId: stock!.id,
                   price,
-                  qty:filledQty,
-                  buyOrderId:newOrder.id,
-                  sellOrderId:order!.orderId
-                }
-              })
+                  qty: filledQty,
+                  buyOrderId: newOrder.id,
+                  sellOrderId: order!.orderId,
+                },
+              });
             }
-            matchedOrder.asks.orders.splice(i,1)
+            matchedOrder.asks.orders.splice(i, 1);
           }
           matchedOrder.bids.orders.push({
             userId,
-            qty:qty-totalqty,
-            filledQty:totalqty,
-            orderId:newOrder.id,
-            createdAt:new Date()
-          })
-        }else if(matchedOrder.asks.totalQty>qty){
+            qty: qty - totalqty,
+            filledQty: totalqty,
+            orderId: newOrder.id,
+            createdAt: new Date(),
+          });
+        } else if (matchedOrder.asks.totalQty > qty) {
           // make entry to filled table and update the orderbook
-          let totalqty=matchedOrder.asks.totalQty
-          let i=0;
-          let orderqty=qty
-          while(orderqty!=0){
-            const order=matchedOrder.asks.orders[i]
-            if(order!.qty<=orderqty){
-              orderqty-=order!.qty
-              const newFilledOrder=prisma.fill.create({
-                data:{
-                  stockId:stock!.id,
+          let totalqty = matchedOrder.asks.totalQty;
+          let i = 0;
+          let orderqty = qty;
+          while (orderqty != 0) {
+            const order = matchedOrder.asks.orders[i];
+            if (order!.qty <= orderqty) {
+              orderqty -= order!.qty;
+              const newFilledOrder = await prisma.fill.create({
+                data: {
+                  stockId: stock!.id,
                   price,
-                  qty:order!.qty,
-                  buyOrderId:newOrder.id,
-                  sellOrderId:order!.orderId
-                }
-              })
-              matchedOrder.asks.orders.splice(i,1)
-            }else{
-              // update the order in orderbook and reduce the qty that has been eaten up 
+                  qty: order!.qty,
+                  buyOrderId: newOrder.id,
+                  sellOrderId: order!.orderId,
+                },
+              });
+              matchedOrder.asks.orders.splice(i, 1);
             }
-            
           }
         }
       }
@@ -294,6 +293,104 @@ app.post("/order", authmiddleware, async (req: any, res) => {
       const availableStock = asset.available;
       asset.available = availableStock - qty;
       asset.locked = qty;
+    }
+
+    const newOrder = await prisma.order.create({
+      data: {
+        userId,
+        side,
+        type,
+        price,
+        qty,
+        filledQty: 0,
+        status: "FILLED",
+        stockId: stock!.id,
+      },
+    });
+
+    const stockAvailableInOrderBook = ORDERBOOK[symbol];
+    if (!stockAvailableInOrderBook) {
+      ORDERBOOK[symbol]![price]!.asks = {
+        totalQty: qty,
+        orders: [
+          {
+            userId,
+            qty,
+            filledQty: 0,
+            orderId: newOrder.id,
+            createdAt: new Date(),
+          },
+        ],
+      };
+    }
+
+    const matchedOrder = ORDERBOOK[symbol]![price];
+    if (!matchedOrder!.bids) {
+      res.status(404).json({
+        message: "Bids are empty",
+      });
+    } else {
+      if (matchedOrder!.bids.totalQty <= qty) {
+        let totalQty = matchedOrder!.bids.totalQty;
+        while (totalQty != 0) {
+          const order = matchedOrder!.bids.orders[0];
+          if (order!.qty <= qty) {
+            totalQty -= order!.qty;
+            const filledQty = order!.qty;
+            const newFilledOrder = await prisma.fill.create({
+              data: {
+                stockId: stock!.id,
+                price,
+                qty: filledQty,
+                buyOrderId: order!.orderId,
+                sellOrderId: newOrder.id,
+              },
+            });
+          }
+          matchedOrder!.bids.orders.splice(0, 1);
+        }
+        matchedOrder!.asks.orders.push({
+          userId,
+          qty: qty - totalQty,
+          filledQty: totalQty,
+          orderId: newOrder.id,
+          createdAt: new Date(),
+        });
+      } else {
+        let totalQty = matchedOrder!.bids.totalQty;
+        let i = 0;
+        let orderQty = qty;
+        while (orderQty != 0) {
+          const order = matchedOrder!.bids.orders[i];
+          if (order!.qty <= orderQty) {
+            orderQty -= order!.qty;
+            const newFilledOrder = await prisma.fill.create({
+              data: {
+                stockId: stock!.id,
+                price,
+                qty: order!.qty,
+                buyOrderId: order!.orderId,
+                sellOrderId: newOrder.id,
+              },
+            });
+            matchedOrder!.asks.orders.splice(i, 1);
+          }else {
+            const newFilledOrder=await prisma.fill.create({
+              data:{
+                stockId: stock!.id,
+                price,
+                qty: qty,
+                buyOrderId: order!.orderId,
+                sellOrderId: newOrder.id,
+              }
+            })
+            matchedOrder!.asks.orders[i]!.filledQty=orderQty
+            matchedOrder!.asks.orders[i]!.qty-=orderQty
+            // update the totalqty of the price tag
+          }
+          
+        }
+      }
     }
   }
 });
