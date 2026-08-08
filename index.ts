@@ -349,6 +349,7 @@ app.post("/order", authmiddleware, async (req: any, res) => {
           }
           matchedOrder!.bids.orders.splice(0, 1);
         }
+        
         matchedOrder!.asks.orders.push({
           userId,
           qty: qty - totalQty,
@@ -374,22 +375,21 @@ app.post("/order", authmiddleware, async (req: any, res) => {
               },
             });
             matchedOrder!.asks.orders.splice(i, 1);
-          }else {
-            const newFilledOrder=await prisma.fill.create({
-              data:{
+          } else {
+            const newFilledOrder = await prisma.fill.create({
+              data: {
                 stockId: stock!.id,
                 price,
                 qty: qty,
                 buyOrderId: order!.orderId,
                 sellOrderId: newOrder.id,
-              }
-            })
-            matchedOrder!.asks.orders[i]!.filledQty=orderQty
-            matchedOrder!.asks.orders[i]!.qty-=orderQty
-            // update the totalqty of the price tag
+              },
+            });
+            matchedOrder!.asks.orders[i]!.filledQty = orderQty;
+            matchedOrder!.asks.orders[i]!.qty -= orderQty;
           }
-          
         }
+        matchedOrder!.bids.totalQty -= qty;
       }
     }
   }
